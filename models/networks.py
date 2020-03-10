@@ -280,7 +280,7 @@ class NLayerDiscriminator(nn.Module):
         return self.model(input)
 
 # srdanet_generator
-class Bottleneck(nn.Module):
+class SrdanetBottleneck(nn.Module):
     expansion = 4
 
     def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None):
@@ -433,52 +433,48 @@ class SrdanetGenerator(nn.Module):
 
         return nn.Sequential(*layers)
 def srdanet_generator(num_cls=2, gpu_ids=[]):
-    model = SrdanetGenerator(Bottleneck, [3, 4, 6, 3],  num_cls)  # out [-1, 1]
+    model = SrdanetGenerator(SrdanetBottleneck, [3, 4, 6, 3],  num_cls)  # out [-1, 1]
     if len(gpu_ids) > 0:
         assert (torch.cuda.is_available())
         model.to(gpu_ids[0])
         model = torch.nn.DataParallel(model, gpu_ids)  # multi-GPUs
     return model
 
-# the perception loss
-class GeneratorLoss(nn.Module):
-    def __init__(self):
-        super(GeneratorLoss, self).__init__()
-        vgg = vgg16(pretrained=True)
-        loss_network = nn.Sequential(*list(vgg.features)[:31]).eval()
-        for param in loss_network.parameters():
-            param.requires_grad = False
-        self.loss_network = loss_network
-        self.mse_loss = nn.MSELoss()
-        self.tv_loss = TVLoss()
+# output discriminator
+class SrdanetDs(nn.Module):
 
-    def forward(self, out_images, target_images, is_sr=False):
-        if is_sr:
-            # Perception Loss
-            perception_loss = self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))
-            # Image Loss
-            image_loss = self.mse_loss(out_images, target_images)
-            # TV Loss
-            tv_loss = self.tv_loss(out_images)
-            return image_loss + 2e-8 * tv_loss  + 0.006 * perception_loss
-        else:
-            content_loss = self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))
-            return content_loss
-class TVLoss(nn.Module):
-    def __init__(self, tv_loss_weight=1):
-        super(TVLoss, self).__init__()
-        self.tv_loss_weight = tv_loss_weight
+	def __init__(self, num_classes, ndf = 64):
+		super(SrdanetDs, self).__init__()
 
-    def forward(self, x):
-        batch_size = x.size()[0]
-        h_x = x.size()[2]
-        w_x = x.size()[3]
-        count_h = self.tensor_size(x[:, :, 1:, :])
-        count_w = self.tensor_size(x[:, :, :, 1:])
-        h_tv = torch.pow((x[:, :, 1:, :] - x[:, :, :h_x - 1, :]), 2).sum()
-        w_tv = torch.pow((x[:, :, :, 1:] - x[:, :, :, :w_x - 1]), 2).sum()
-        return self.tv_loss_weight * 2 * (h_tv / count_h + w_tv / count_w) / batch_size
+		self.conv1 = nn.Conv2d(num_classes, ndf, kernel_size=4, stride=2, padding=1)
+		self.conv2 = nn.Conv2d(ndf, ndf*2, kernel_size=4, stride=2, padding=1)
+		self.conv3 = nn.Conv2d(ndf*2, ndf*4, kernel_size=4, stride=2, padding=1)
+		self.conv4 = nn.Conv2d(ndf*4, ndf*8, kernel_size=4, stride=2, padding=1)
+		self.classifier = nn.Conv2d(ndf*8, 1, kernel_size=4, stride=2, padding=1)
 
-    @staticmethod
-    def tensor_size(t):
-        return t.size()[1] * t.size()[2] * t.size()[3]
+		self.leaky_relu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+		#self.up_sample = nn.Upsample(scale_factor=32, mode='bilinear')
+		#self.sigmoid = nn.Sigmoid()
+
+
+	def forward(self, x):
+		x = self.conv1(x)
+		x = self.leaky_relu(x)
+		x = self.conv2(x)
+		x = self.leaky_relu(x)
+		x = self.conv3(x)
+		x = self.leaky_relu(x)
+		x = self.conv4(x)
+		x = self.leaky_relu(x)
+		x = self.classifier(x)
+		#x = self.up_sample(x)
+		#x = self.sigmoid(x)
+
+		return x
+def srdanet_ds(num_classes=2, gpu_ids=[]):
+    model = SrdanetDs(num_classes)
+    if len(gpu_ids) > 0:
+        assert (torch.cuda.is_available())
+        model.to(gpu_ids[0])
+        model = torch.nn.DataParallel(model, gpu_ids)  # multi-GPUs
+    return model

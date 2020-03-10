@@ -17,7 +17,7 @@ class SrdanetStep1Model(BaseModel):
     def __init__(self, opt):
         BaseModel.__init__(self, opt)
         self.loss_names = ["G", "D"]    # "loss_"
-        self.visual_names = ["imageA", "fakeB", "imageA_up", "imageB", "pixelfakeB_out"]  # ""    , "fcreal_out"
+        self.visual_names = ["imageA", "fakeB", "imageA_up", "imageB", "pixelfakeB_out", "outputrealB_out"]  # ""    , "fcreal_out"
 
         self.model_names = ['generator', 'pixel_discriminator']  # "net"
 
