@@ -51,17 +51,17 @@ def transformB(image, opt):
     image = TF.crop(image, i, j, h, w)
 
     # 降采样成 A_crop_size
-    #image_down = image.resize((opt.A_crop_size, opt.A_crop_size), resample=m.BICUBIC)
+    image_down = image.resize((opt.A_crop_size, opt.A_crop_size), resample=m.BICUBIC)
 
     nomal_fun_image = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
     image = TF.to_tensor(image)
     image = nomal_fun_image(image)
 
-    #image_down = TF.to_tensor(image_down)
-    #image_down = nomal_fun_image(image_down)
+    image_down = TF.to_tensor(image_down)
+    image_down = nomal_fun_image(image_down)
 
-    return image
+    return image, image_down
 
 class SrdanetDataset(BaseDataset):
     """
@@ -137,10 +137,10 @@ class SrdanetDataset(BaseDataset):
         
 
         A_img, A_img_up, A_label_up = transform(A_img, A_label, self.opt)
-        B_img = transformB(B_img, self.opt)
+        B_img, B_img_down = transformB(B_img, self.opt)
 
         return {'A_img': A_img, 'A_img_up': A_img_up, 
-                'A_label_up': A_label_up, 'B_img': B_img} #'B_img_down': B_img_down
+                'A_label_up': A_label_up, 'B_img': B_img, 'B_img_down': B_img_down} #'B_img_down': B_img_down
     def __len__(self):
         """Return the total number of images in the dataset.
 

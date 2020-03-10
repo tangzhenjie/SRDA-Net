@@ -14,13 +14,13 @@ class BaseOptions():
         # basic parameters
         parser.add_argument('--dataroot', default='./datasets/remotesensing',
                             help='path to images (should have subfolders trainA, trainB, valB, etc)')
-        parser.add_argument('--name', type=str, default='one_class_srdanet_step1',
+        parser.add_argument('--name', type=str, default='one_class_srdanet_step2',
                             help='name of the experiment. It decides where to store samples and models')
-        parser.add_argument('--gpu_ids', type=str, default='1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
+        parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
 
         # model parameters
-        parser.add_argument('--model', type=str, default='srdanet_step1',
+        parser.add_argument('--model', type=str, default='srdanet_step2',
                             help='chooses which model to use. [step1 | step2 | baseline]')
         # dataset parameters
         parser.add_argument('--dataset_mode', type=str, default='srdanet',
