@@ -30,6 +30,9 @@ class SrdanetStep1Model(BaseModel):
         # 像素判别器损失
         self.mse_loss = networks.GANLoss("lsgan").to(self.device)
 
+        # idt 损失
+        self.generator_criterion = networks.GeneratorLoss().to(self.device)
+
         # 内容一致损失
         self.L1_loss = nn.L1Loss().to(self.device)
 
@@ -69,7 +72,7 @@ class SrdanetStep1Model(BaseModel):
         self.loss_da = self.mse_loss(self.pixelfakeB_out, True)
 
         # A内容一致性损失
-        self.loss_idtA = self.L1_loss(self.fakeB, self.imageA_up)
+        self.loss_idtA = self.generator_criterion(self.fakeB, self.imageA_up, is_sr=False)
 
         # fix_pointA loss
         self.loss_fix_point = self.L1_loss(self.feature_A, self.feature_fakeB_down_cut)

@@ -34,6 +34,12 @@ class SrdanetStep2Model(BaseModel):
             # 输出空间判别器
             self.netfc_discriminator = networks.srdanet_ds(num_classes=opt.num_classes, gpu_ids=self.gpu_ids)
 
+            # 语义分割损失
+            self.loss_function = nn.CrossEntropyLoss(ignore_index=255).to(self.device)
+
+            # idt 损失
+            self.generator_criterion = networks.GeneratorLoss().to(self.device)
+
             # 像素判别器损失
             self.mse_loss = networks.GANLoss("lsgan").to(self.device)
 
@@ -61,7 +67,8 @@ class SrdanetStep2Model(BaseModel):
             self.imageB_down = input["B_img_down"].to(self.device)
         else:
             self.imageB_down = input["B_img_down"].to(self.device)
-            self.label = input["B_label"].to(self.device)
+            self.label = input["label"].to(self.device)
+            self.imageB = input["B_img"].to(self.device)
     def forward(self):
         if self.isTrain:
             # iamgeA 通过 generator
@@ -87,6 +94,8 @@ class SrdanetStep2Model(BaseModel):
             self.outputrealB_out = self.netfc_discriminator(F.softmax(self.pre_B, dim=1))
         else:
             _, self.pre, _ = self.netgenerator(self.imageB_down)
+            _, _, h, w = self.imageB.size()
+            self.pre = nn.functional.interpolate(self.pre, mode="bilinear", size=(h, w), align_corners=True)
             self.prediction = self.pre.data.max(1)[1].unsqueeze(1)
     def backward(self):
         """计算两个损失"""
@@ -106,7 +115,7 @@ class SrdanetStep2Model(BaseModel):
         self.loss_da2 = self.bce_loss(self.outputrealB_out, False)
 
         # A内容一致性损失
-        self.loss_idtA = self.L1_loss(self.fakeB, self.imageA_up)
+        self.loss_idtA = self.generator_criterion(self.fakeB, self.imageA_up, is_sr=False)
 
         # fix_pointA loss
         self.loss_fix_point = self.L1_loss(self.feature_A, self.feature_fakeB_down_cut)
