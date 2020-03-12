@@ -17,7 +17,7 @@ class SrdanetStep1Model(BaseModel):
     def __init__(self, opt):
         BaseModel.__init__(self, opt)
         self.loss_names = ["G", "D"]    # "loss_"
-        self.visual_names = ["imageA", "fakeB", "imageA_up", "imageB", "pixelfakeB_out"]  # ""    , "fcreal_out"
+        self.visual_names = ["imageA", "fakeB", "imageA_up", "imageB_down", "imageB", "imageB_idt", "pixelfakeB_out"]  # ""    , "fcreal_out"
 
         self.model_names = ['generator', 'pixel_discriminator']  # "net"
 
@@ -48,6 +48,7 @@ class SrdanetStep1Model(BaseModel):
         self.imageA = input["A_img"].to(self.device)  #[-1, 1]
         self.imageA_up = input["A_img_up"].to(self.device) #[-1, 1]
         self.imageB = input["B_img"].to(self.device) #[-1, 1]
+        self.imageB_down = input["B_img_down"].to(self.device) #[-1, 1]
 
     def forward(self):
         # iamgeA 通过 generator
@@ -62,6 +63,10 @@ class SrdanetStep1Model(BaseModel):
         self.fakeB_down_cut = self.fakeB_down.detach() # 隔断反向传播
         self.feature_fakeB_down_cut, self.pre_aux, _ = self.netgenerator(self.fakeB_down_cut) # 还没有使用
 
+        # imageB_down 通过网络
+        _, _, self.imageB_idt = self.netgenerator(self.imageB_down)
+        self.imageB_idt = nn.functional.interpolate(self.imageB_idt, mode="bilinear", size=(h, w), align_corners=True)
+        self.imageB_idt = F.tanh(self.imageB_idt)
         # imagesrA 通过判别器
         self.pixelfakeB_out = self.netpixel_discriminator(self.fakeB)
 
@@ -74,11 +79,14 @@ class SrdanetStep1Model(BaseModel):
         # A内容一致性损失
         self.loss_idtA = self.generator_criterion(self.fakeB, self.imageA_up, is_sr=False)
 
+        # B 内容一致性损失
+        self.loss_idtB = self.generator_criterion(self.imageB_idt, self.imageB, is_sr=True)
+
         # fix_pointA loss
         self.loss_fix_point = self.L1_loss(self.feature_A, self.feature_fakeB_down_cut)
 
         loss_DA = self.loss_da
-        loss_ID = self.loss_idtA + self.loss_fix_point * 0.5
+        loss_ID = self.loss_idtB + self.loss_idtA + self.loss_fix_point * 0.5
 
         # 求分割损失和超分辨损失的和
         self.loss_G = loss_DA * 2 + loss_ID * 10

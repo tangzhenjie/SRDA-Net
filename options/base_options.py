@@ -27,8 +27,8 @@ class BaseOptions():
                             help='chooses how datasets are loaded. [srda | single | baseline]')
         parser.add_argument('--serial_batches', type=bool, default=False,
                             help='if true, takes images in order to make batches, otherwise takes them randomly')
-        parser.add_argument('--num_threads', default=2, type=int, help='# threads for loading data')
-        parser.add_argument('--batch_size', type=int, default=4, help='input batch size')
+        parser.add_argument('--num_threads', default=3, type=int, help='# threads for loading data')
+        parser.add_argument('--batch_size', type=int, default=3, help='input batch size')
 
         # additional parameters
         parser.add_argument('--no_html', type=bool, default=False,

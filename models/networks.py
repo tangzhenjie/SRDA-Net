@@ -503,8 +503,8 @@ class GeneratorLoss(nn.Module):
             return image_loss + 2e-8 * tv_loss  + 0.006 * perception_loss
         else:
             perception_loss = self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))
-            image_loss = self.mse_loss(out_images, target_images)
-            return (image_loss + perception_loss) * 0.5
+            #image_loss = self.mse_loss(out_images, target_images)
+            return perception_loss
 
 class TVLoss(nn.Module):
     def __init__(self, tv_loss_weight=1):

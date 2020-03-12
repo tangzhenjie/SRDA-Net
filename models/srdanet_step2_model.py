@@ -19,7 +19,7 @@ class SrdanetStep2Model(BaseModel):
         self.loss_names = ["G", "D"]    # "loss_"
         self.visual_names = ["imageB_down", "label", "prediction"]  # ""
         if self.isTrain:
-            self.visual_names += ["imageA", "fakeB", "imageA_up", "imageB", "pixelfakeB_out", "outputrealB_out"]  # ""    , "fcreal_out"
+            self.visual_names += ["imageA", "fakeB", "imageA_up", "imageB", "imageB_idt", "pixelfakeB_out", "outputrealB_out"]  # ""    , "fcreal_out"
 
         self.model_names = ['generator']
         if self.isTrain:
@@ -86,7 +86,8 @@ class SrdanetStep2Model(BaseModel):
             self.pre_A_cut = self.pre.detach()  # 隔断反向传播
             self.prediction = self.pre.data.max(1)[1].unsqueeze(1)
             # imageB_down 通过 generator
-            _, self.pre_B, _ = self.netgenerator(self.imageB_down)
+            _, self.pre_B, self.imageB_idt = self.netgenerator(self.imageB_down)
+            self.imageB_idt = nn.functional.interpolate(self.imageB_idt, mode="bilinear", size=(h, w), align_corners=True)
             self.pre_B_cut = self.pre_B.detach()  # 隔断反向传播
 
             # fakeB 通过判别器
@@ -117,11 +118,14 @@ class SrdanetStep2Model(BaseModel):
         # A内容一致性损失
         self.loss_idtA = self.generator_criterion(self.fakeB, self.imageA_up, is_sr=False)
 
+        # B 内容一致性损失
+        self.loss_idtB = self.generator_criterion(self.imageB_idt, self.imageB, is_sr=True)
+
         # fix_pointA loss
         self.loss_fix_point = self.L1_loss(self.feature_A, self.feature_fakeB_down_cut)
 
         loss_DA = self.loss_da1 + self.loss_da2
-        loss_ID = self.loss_idtA + self.loss_fix_point * 0.5
+        loss_ID = self.loss_idtB + self.loss_idtA + self.loss_fix_point * 0.5
 
         # 求分割损失和超分辨损失的和
         self.loss_G = loss_DA * 2 + loss_ID * 10 + self.loss_cross_entropy * 10
