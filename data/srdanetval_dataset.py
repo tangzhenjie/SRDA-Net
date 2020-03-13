@@ -7,7 +7,7 @@ import numpy as np
 import torchvision.transforms.functional as TF
 
 def transformA(image):
-    image_down = image.resize((250, 250), resample=m.BICUBIC)
+    image_down = image.resize((188, 188), resample=m.BICUBIC)
 
     nomal_fun_image = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 

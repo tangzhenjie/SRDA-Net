@@ -1,4 +1,4 @@
-from options.train_options import TrainOptions
+﻿from options.train_options import TrainOptions
 from options.test_options import TestOptions
 from data import create_dataset
 from models import create_model
@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
     # 设置显示训练结果的类
     visualizer = Visualizer(opt_train)
-    for epoch in range(opt_train.epoch_count, opt_train.niter + opt_train.niter_decay + 1):
+    for epoch in range(opt_train.epoch_count, opt_train.niter + opt_train.niter_decay + 1, 2):
         epoch_iters = 0
         epoch_start_time = time.time()
 

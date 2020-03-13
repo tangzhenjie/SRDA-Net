@@ -27,7 +27,7 @@ class TrainOptions(BaseOptions):
                             help='learning rate policy. [linear | step | plateau | cosine]')
         parser.add_argument('--lr_decay_iters', type=int, default=10,
                             help='multiply by a gamma every lr_decay_iters iterations') # 换学习率时才用到
-        parser.add_argument('--epoch_count', type=int, default=21,
+        parser.add_argument('--epoch_count', type=int, default=1,
                             help='the starting epoch count, for linear learning rate')
         self.isTrain = True
         return parser
