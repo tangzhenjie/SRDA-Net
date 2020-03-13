@@ -280,103 +280,92 @@ class NLayerDiscriminator(nn.Module):
         return self.model(input)
 
 # srdanet_generator
-class SrdanetBottleneck(nn.Module):
-    expansion = 4
+class ResASPPB(nn.Module):
+    def __init__(self, channels):
+        super(ResASPPB, self).__init__()
+        self.conv1_1 = nn.Sequential(nn.Conv2d(channels, channels, 3, 1, 1, 1, bias=False), nn.LeakyReLU(0.1, inplace=True))
+        self.conv2_1 = nn.Sequential(nn.Conv2d(channels, channels, 3, 1, 4, 4, bias=False), nn.LeakyReLU(0.1, inplace=True))
+        self.conv3_1 = nn.Sequential(nn.Conv2d(channels, channels, 3, 1, 8, 8, bias=False), nn.LeakyReLU(0.1, inplace=True))
+        self.conv1_2 = nn.Sequential(nn.Conv2d(channels, channels, 3, 1, 1, 1, bias=False), nn.LeakyReLU(0.1, inplace=True))
+        self.conv2_2 = nn.Sequential(nn.Conv2d(channels, channels, 3, 1, 4, 4, bias=False), nn.LeakyReLU(0.1, inplace=True))
+        self.conv3_2 = nn.Sequential(nn.Conv2d(channels, channels, 3, 1, 8, 8, bias=False), nn.LeakyReLU(0.1, inplace=True))
+        self.conv1_3 = nn.Sequential(nn.Conv2d(channels, channels, 3, 1, 1, 1, bias=False), nn.LeakyReLU(0.1, inplace=True))
+        self.conv2_3 = nn.Sequential(nn.Conv2d(channels, channels, 3, 1, 4, 4, bias=False), nn.LeakyReLU(0.1, inplace=True))
+        self.conv3_3 = nn.Sequential(nn.Conv2d(channels, channels, 3, 1, 8, 8, bias=False), nn.LeakyReLU(0.1, inplace=True))
+        self.b_1 = nn.Conv2d(channels * 3, channels, 1, 1, 0, bias=False)
+        self.b_2 = nn.Conv2d(channels * 3, channels, 1, 1, 0, bias=False)
+        self.b_3 = nn.Conv2d(channels * 3, channels, 1, 1, 0, bias=False)
+    def __call__(self, x):
+        buffer_1 = []
+        buffer_1.append(self.conv1_1(x))
+        buffer_1.append(self.conv2_1(x))
+        buffer_1.append(self.conv3_1(x))
+        buffer_1 = self.b_1(torch.cat(buffer_1, 1))
 
-    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None):
-        super(SrdanetBottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, bias=False) # change
-        self.bn1 = nn.BatchNorm2d(planes)
-        padding = dilation
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, # change
-                               padding=padding, bias=False, dilation = dilation)
-        self.bn2 = nn.BatchNorm2d(planes)
+        buffer_2 = []
+        buffer_2.append(self.conv1_2(buffer_1))
+        buffer_2.append(self.conv2_2(buffer_1))
+        buffer_2.append(self.conv3_2(buffer_1))
+        buffer_2 = self.b_2(torch.cat(buffer_2, 1))
 
-        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * 4)
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
+        buffer_3 = []
+        buffer_3.append(self.conv1_3(buffer_2))
+        buffer_3.append(self.conv2_3(buffer_2))
+        buffer_3.append(self.conv3_3(buffer_2))
+        buffer_3 = self.b_3(torch.cat(buffer_3, 1))
 
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out += residual
-        out = self.relu(out)
-
-        return out
+        return x + buffer_1 + buffer_2 + buffer_3
+class ResB(nn.Module):
+    def __init__(self, channels):
+        super(ResB, self).__init__()
+        self.body = nn.Sequential(
+            nn.Conv2d(channels, channels, 3, 1, 1, bias=False),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.Conv2d(channels, channels, 3, 1, 1, bias=False),
+        )
+    def __call__(self,x):
+        out = self.body(x)
+        return out + x
 class SrdanetGenerator(nn.Module):
-    def __init__(self, block, layers, num_cls=2):
+    def __init__(self, num_cls=2):
         super(SrdanetGenerator, self).__init__()
-        self.inplanes = 64
-        # feature extractor
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)  # change
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=1)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=1, dilation=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=1, dilation=4)
-        # downsample == 4
+        self.feature_extractor = nn.Sequential(
+            nn.Conv2d(3, 64, 3, 1, 1, bias=False),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.Conv2d(64, 128, 3, 1, 1, bias=False),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.Conv2d(128, 256, 3, 1, 1, bias=False),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+            ResB(256),
+            ResASPPB(256),
+            ResB(256),
+            ResASPPB(256),
+            ResB(256),
+        )
 
+        # downsample == 2
         # SRAAN
-        n_downsampling = 3  # 2**3 = 8 = 4 * 2
-        SRAAN_up2 = []
-        SRAAN_up8 = []
-        SRAAN_classifier = []
-        for i in range(2):  # add upsampling layers 0, 1
-            mult = 2 ** (n_downsampling - i)
-            SRAAN_up2 += [nn.ConvTranspose2d(256 * mult, int(256 * mult / 2),
+        SRAAN_up2 = [nn.ConvTranspose2d(256, 256,
                                          kernel_size=3, stride=2,
                                          padding=1, output_padding=1,
-                                         bias=False),
-                      nn.InstanceNorm2d(int(256 * mult / 2)),    # use InstanceNorm to generate image
-                      nn.ReLU(True)]
-        for i in range(2, 3):  # add upsampling layers 2
-            mult = 2 ** (n_downsampling - i)
-            SRAAN_up8 += [nn.ConvTranspose2d(256 * mult, int(256 * mult / 2),
+                                         bias=True),
+                            nn.ReLU(True)]
+        SRAAN_up4 = [nn.ConvTranspose2d(256, 128,
                                          kernel_size=3, stride=2,
                                          padding=1, output_padding=1,
-                                         bias=False),
-                      nn.InstanceNorm2d(int(256 * mult / 2)),    # use InstanceNorm to generate image
-                      nn.ReLU(True)]
-
-        SRAAN_classifier += [nn.ReflectionPad2d(3)]
-        SRAAN_classifier += [nn.Conv2d(256, 3, kernel_size=7, padding=0)]
+                                         bias=True),
+                            nn.ReLU(True)]
+        SRAAN_classifier = [nn.Conv2d(128, 3, kernel_size=9, padding=4)]
 
         self.SRAAN_up2 = nn.Sequential(*SRAAN_up2)
-        self.SRAAN_up8 = nn.Sequential(*SRAAN_up8)
+        self.SRAAN_up4 = nn.Sequential(*SRAAN_up4)
         self.SRAAN_classifier = nn.Sequential(*SRAAN_classifier)
 
         # SSAN
-        self.SSAN_conv1 = nn.Conv2d(2048, 512, kernel_size=1, bias=False)
-        self.SSAN_bn1 = nn.BatchNorm2d(512)
-
-        self.SSAN_mix_conv2 = nn.Conv2d(1024, 256, kernel_size=3, bias=False, padding=1)
-        self.SSAN_mix_bn2 = nn.BatchNorm2d(256)
-
-
-        #self.SSAN_mix_conv3 = nn.Conv2d(512, 64, kernel_size=3, bias=False, padding=1)
-        #self.SSAN_mix_bn3 = nn.BatchNorm2d(64)
-
-        self.SSAN_classifier = nn.Conv2d(512, num_cls, kernel_size=3, padding=1)
+        self.SSAN_mix_conv1 = nn.Conv2d(512, 128, kernel_size=3, padding=1)
+        self.SSAN_mix_conv2 = nn.Conv2d(256, 64, kernel_size=3, padding=1)
+        self.SSAN_classifier = nn.Conv2d(64, num_cls, kernel_size=9, padding=4)
 
         # 初始化参数
         for m in self.modules():
@@ -385,38 +374,26 @@ class SrdanetGenerator(nn.Module):
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-
     def forward(self, x):
         # feature extractor
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        feature = self.layer4(x)
+        feature = self.feature_extractor(x) # channel=256
 
         # SRAAN
-        SRAAN_up2 = self.SRAAN_up2(feature) # channel = 512
-        SRAAN_up8 = self.SRAAN_up8(SRAAN_up2) # channel = 256
-        sr_image = self.SRAAN_classifier(SRAAN_up8)
+        SRAAN_up2 = self.SRAAN_up2(feature) # channel=256
+        SRAAN_up4 = self.SRAAN_up4(SRAAN_up2) # channel=128
+        sr_image = self.SRAAN_classifier(SRAAN_up4) # channel=128
 
         # SSAN
-        SSAN_feature = self.SSAN_conv1(feature)
-        SSAN_feature = self.SSAN_bn1(SSAN_feature)
         _, _, h1, w1 = SRAAN_up2.size()
-        SSAN_feature_up2 = nn.functional.interpolate(SSAN_feature, mode="bilinear", size=(h1, w1), align_corners=True)
-        SSAN_feature_up2_cat = torch.cat((SSAN_feature_up2, SRAAN_up2), dim=1)
-        SSAN_feature_up2_mix = self.SSAN_mix_conv2(SSAN_feature_up2_cat)
-        SSAN_feature_up2_mix = self.SSAN_mix_bn2(SSAN_feature_up2_mix)
+        SSAN_feature_up2 = nn.functional.interpolate(feature, mode="bilinear", size=(h1, w1), align_corners=True)
+        SSAN_feature_up2_cat = torch.cat((SSAN_feature_up2, SRAAN_up2), dim=1) # 512
+        SSAN_feature_up2_mix = self.SSAN_mix_conv1(SSAN_feature_up2_cat) # 128
 
-        _, _, h2, w2 = SRAAN_up8.size()
-        SSAN_feature_up8 = nn.functional.interpolate(SSAN_feature_up2_mix, mode="bilinear", size=(h2, w2), align_corners=True)
-        SSAN_feature_up8_cat = torch.cat((SSAN_feature_up8, SRAAN_up8), dim=1)
-        #SSAN_feature_up16_mix = self.SSAN_mix_conv3(SSAN_feature_up16_cat)
-        #SSAN_feature_up16_mix = self.SSAN_mix_bn3(SSAN_feature_up16_mix)
-        pre_seg = self.SSAN_classifier(SSAN_feature_up8_cat)
+        _, _, h2, w2 = SRAAN_up4.size()
+        SSAN_feature_up4 = nn.functional.interpolate(SSAN_feature_up2_mix, mode="bilinear", size=(h2, w2), align_corners=True)
+        SSAN_feature_up4_cat = torch.cat((SSAN_feature_up4, SRAAN_up4), dim=1)
+        SSAN_feature_up4_mix = self.SSAN_mix_conv2(SSAN_feature_up4_cat)
+        pre_seg = self.SSAN_classifier(SSAN_feature_up4_mix)
 
         return feature, pre_seg, sr_image
 
