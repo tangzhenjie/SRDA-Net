@@ -1,4 +1,4 @@
-import torch
+﻿import torch
 import itertools
 from .base_model import BaseModel
 from . import networks
@@ -88,6 +88,7 @@ class SrdanetStep2Model(BaseModel):
             # imageB_down 通过 generator
             _, self.pre_B, self.imageB_idt = self.netgenerator(self.imageB_down)
             self.imageB_idt = nn.functional.interpolate(self.imageB_idt, mode="bilinear", size=(h, w), align_corners=True)
+            self.imageB_idt = F.tanh(self.imageB_idt)
             self.pre_B_cut = self.pre_B.detach()  # 隔断反向传播
 
             # fakeB 通过判别器
@@ -128,7 +129,7 @@ class SrdanetStep2Model(BaseModel):
         loss_ID = self.loss_idtB + self.loss_idtA + self.loss_fix_point * 0.5
 
         # 求分割损失和超分辨损失的和
-        self.loss_G = loss_DA * 2 + loss_ID * 10 + self.loss_cross_entropy * 10
+        self.loss_G = loss_DA * 1 + loss_ID * 10 + self.loss_cross_entropy * 10
         self.loss_G.backward(retain_graph=True)
 
     def backward_D(self):
@@ -140,7 +141,7 @@ class SrdanetStep2Model(BaseModel):
         self.loss_D_da2 = self.bce_loss(self.netfc_discriminator(F.softmax(self.pre_A_cut, dim=1)), False) \
                           + self.bce_loss(self.netfc_discriminator(F.softmax(self.pre_B_cut, dim=1)), True)
 
-        self.loss_D = (self.loss_D_da1 + self.loss_D_da2) * 1
+        self.loss_D = (self.loss_D_da1 + self.loss_D_da2) * 0.5
         self.loss_D.backward()
 
     def optimize_parameters(self):
