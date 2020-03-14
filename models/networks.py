@@ -412,7 +412,7 @@ class SrdanetGenerator(nn.Module):
 
         return nn.Sequential(*layers)
 def srdanet_generator(num_cls=2, gpu_ids=[]):
-    model = SrdanetGenerator(SrdanetBottleneck, [3, 4, 6, 3],  num_cls)  # out [-1, 1]
+    model = SrdanetGenerator(num_cls)  # out [-1, 1]
     if len(gpu_ids) > 0:
         assert (torch.cuda.is_available())
         model.to(gpu_ids[0])

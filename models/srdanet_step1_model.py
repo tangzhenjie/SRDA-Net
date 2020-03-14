@@ -1,4 +1,4 @@
-import torch
+﻿import torch
 import itertools
 from .base_model import BaseModel
 from . import networks
@@ -89,7 +89,7 @@ class SrdanetStep1Model(BaseModel):
         loss_ID = self.loss_idtB + self.loss_idtA + self.loss_fix_point * 0.5
 
         # 求分割损失和超分辨损失的和
-        self.loss_G = loss_DA * 2 + loss_ID * 10
+        self.loss_G = loss_DA * 1 + loss_ID * 10
         self.loss_G.backward(retain_graph=True)
 
     def backward_D(self):
@@ -99,7 +99,7 @@ class SrdanetStep1Model(BaseModel):
         self.loss_D_da = self.mse_loss(self.netpixel_discriminator(self.fakeB_cut), False) \
                           + self.mse_loss(pixeltrueB_out, True)
 
-        self.loss_D = self.loss_D_da * 1
+        self.loss_D = self.loss_D_da * 0.5
         self.loss_D.backward()
 
     def optimize_parameters(self):

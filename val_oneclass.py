@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
     # 设置显示训练结果的类
     visualizer = Visualizer(opt_train)
-    for epoch in range(opt_train.epoch_count, opt_train.niter + opt_train.niter_decay + 1, 2):
+    for epoch in range(opt_train.epoch_count, opt_train.niter + opt_train.niter_decay + 1):
         epoch_iters = 0
         epoch_start_time = time.time()
 
