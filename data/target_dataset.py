@@ -34,7 +34,7 @@ def transform(image, mask, opt):
     mask = TF.to_tensor(mask)
 
     return image, mask
-class SourceDataset(BaseDataset):
+class TargetDataset(BaseDataset):
     """load train and val for segmentation network
     """
 
@@ -57,8 +57,8 @@ class SourceDataset(BaseDataset):
     def __init__(self, opt):
         BaseDataset.__init__(self, opt)
 
-        self.dir_A = opt.dataroot + "/" + 'trainA/images'  # create a path '/trainA/images/*.png'
-        self.dir_B = opt.dataroot + "/" + 'trainA/labels'
+        self.dir_A = opt.dataroot + "/" + 'trainB/images'  # create a path '/trainA/images/*.png'
+        self.dir_B = opt.dataroot + "/" + 'trainB/labels'
 
         self.A_paths = sorted(
             make_dataset(self.dir_A, opt.max_dataset_size))  # load images from '/images/*.png'
