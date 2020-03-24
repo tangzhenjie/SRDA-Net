@@ -5,6 +5,7 @@ from PIL import Image as m
 import torch
 import numpy as np
 import torchvision.transforms.functional as TF
+import random
 
 def transform(image, mask, opt):
 
@@ -46,7 +47,7 @@ class SourceDataset(BaseDataset):
         :param is_train: -- whether training phase or test phase. You can use this flag to add training-specific or test-specific options.
         :return: the modified parser.
         """
-        parser.add_argument('--crop_size', type=int, default=114, help='crop to this size')
+        parser.add_argument('--crop_size', type=int, default=320, help='crop to this size')
         parser.add_argument('--no_crop', type=bool, default=False,
                             help='crop the A and B according to the special datasets params  [crop | none],')
         parser.add_argument('--no_flip', type=bool, default=False,
