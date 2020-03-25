@@ -521,6 +521,7 @@ class Srdanet_Baseline(nn.Module):
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
             ResB(256),
             ResASPPB(256),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
             ResB(256),
             ResASPPB(256),
             ResB(256),
