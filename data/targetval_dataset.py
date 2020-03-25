@@ -16,7 +16,7 @@ def transform(image, mask):
     mask = TF.to_tensor(mask)
 
     return image, mask
-class TargetDataset(BaseDataset):
+class TargetvalDataset(BaseDataset):
     """load train and val for segmentation network
     """
 
