@@ -25,21 +25,16 @@ def transform(image, mask, opt):
         image = TF.vflip(image)
         mask = TF.vflip(mask)
 
-    # 双线性插值成B的大小
-    up_image = image.resize((opt.B_crop_size, opt.B_crop_size), resample=m.BICUBIC)
-
-    # 标签最近邻插值成B的大小
-    mask_up = mask.resize((opt.B_crop_size, opt.B_crop_size))
-
-    mask_up = np.array(mask_up).astype(np.long)
+    mask = np.array(mask).astype(np.long)
     nomal_fun_image = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
     # Transform to tensor
-    up_image = TF.to_tensor(up_image)
-    up_image = nomal_fun_image(up_image)
-    mask_up = TF.to_tensor(mask_up)
+    image = TF.to_tensor(image)
+    image = nomal_fun_image(image)
 
-    return up_image, mask_up
+    mask = TF.to_tensor(mask)
+
+    return image, mask
 
 
 def transformB(image, opt):
@@ -53,10 +48,10 @@ def transformB(image, opt):
     image = TF.to_tensor(image)
     image = nomal_fun_image(image)
 
-    return image
+    return  image
 
 
-class HtohDataset(BaseDataset):
+class LtohDataset(BaseDataset):
     """
     This dataset class can load unaligned/unpaired datasets
 
@@ -73,7 +68,7 @@ class HtohDataset(BaseDataset):
         :param is_train: -- whether training phase or test phase. You can use this flag to add training-specific or test-specific options.
         :return: the modified parser.
         """
-        parser.add_argument('--A_crop_size', type=int, default=114, help='crop to this size')  # 240
+        parser.add_argument('--A_crop_size', type=int, default=320, help='crop to this size')  # 240
         parser.add_argument('--B_crop_size', type=int, default=380, help='crop to this size')
         parser.add_argument('--inter_method_image', type=str, default='bicubic', help='the image Interpolation method')
         parser.add_argument('--inter_method_label', type=str, default='nearest', help='the label Interpolation method')
@@ -131,11 +126,10 @@ class HtohDataset(BaseDataset):
         A_label = m.open(A_label_path).convert('L')  # 马萨诸塞标签
         B_img = m.open(B_image_path).convert('RGB')  # inria数据
 
-        A_img_up, A_label_up = transform(A_img, A_label, self.opt)
+        A_img, A_label = transform(A_img, A_label, self.opt)
         B_img = transformB(B_img, self.opt)
 
-        return {'A_img': A_img_up,
-                'A_label': A_label_up, 'B_img': B_img}
+        return {'A_img': A_img,  'A_label': A_label, 'B_img': B_img}
 
     def __len__(self):
         """Return the total number of images in the dataset.
