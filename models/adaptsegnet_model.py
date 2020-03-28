@@ -53,7 +53,7 @@ class AdaptsegnetModel(BaseModel):
             self.bce_loss = networks.GANLoss("vanilla").to(self.device)
 
             # 优化器
-            self.optimizer = torch.optim.Adam(self.netAdaptSegnet.parameters(),
+            self.optimizer = torch.optim.Adam(self.netAdaptSegnet.module.optim_parameters(opt),
                                               lr=opt.lr, betas=(opt.beta1, 0.999), weight_decay=0.0005)
             self.optimizer_D = torch.optim.Adam(
                 itertools.chain(self.netModel_D1.parameters(), self.netModel_D2.parameters()),
@@ -67,8 +67,8 @@ class AdaptsegnetModel(BaseModel):
             self.label = input["A_label"].to(self.device)
             self.imageB = input["B_img"].to(self.device)
         else:
-            self.imageB = input["B_img"].to(self.device)
-            self.label = input["B_label"].to(self.device)
+            self.imageB = input["img"].to(self.device)
+            self.label = input["label"].to(self.device)
 
     def forward(self):
         if self.isTrain:

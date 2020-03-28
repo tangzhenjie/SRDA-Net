@@ -14,16 +14,16 @@ class BaseOptions():
         # basic parameters
         parser.add_argument('--dataroot', default='./datasets/remotesensing',
                             help='path to images (should have subfolders trainA, trainB, valB, etc)')
-        parser.add_argument('--name', type=str, default='one_class_srdanet_baseline_source',
+        parser.add_argument('--name', type=str, default='one_class_adaptsegnet_ltol',
                             help='name of the experiment. It decides where to store samples and models')
-        parser.add_argument('--gpu_ids', type=str, default='1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
+        parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
 
         # model parameters
-        parser.add_argument('--model', type=str, default='srdanet_baseline',
+        parser.add_argument('--model', type=str, default='adaptsegnet',
                             help='chooses which model to use. [step1 | step2 | baseline]')
         # dataset parameters
-        parser.add_argument('--dataset_mode', type=str, default='source',
+        parser.add_argument('--dataset_mode', type=str, default='ltol',
                             help='chooses how datasets are loaded. [srda | single | baseline]')
         parser.add_argument('--serial_batches', type=bool, default=False,
                             help='if true, takes images in order to make batches, otherwise takes them randomly')

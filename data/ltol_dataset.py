@@ -71,8 +71,8 @@ class LtolDataset(BaseDataset):
         :param is_train: -- whether training phase or test phase. You can use this flag to add training-specific or test-specific options.
         :return: the modified parser.
         """
-        parser.add_argument('--A_crop_size', type=int, default=320, help='crop to this size')  # 240
-        parser.add_argument('--B_crop_size', type=int, default=380, help='crop to this size')
+        parser.add_argument('--A_crop_size', type=int, default=280, help='crop to this size')  # 240
+        parser.add_argument('--B_crop_size', type=int, default=933, help='crop to this size')
         parser.add_argument('--inter_method_image', type=str, default='bicubic', help='the image Interpolation method')
         parser.add_argument('--inter_method_label', type=str, default='nearest', help='the label Interpolation method')
         parser.add_argument('--no_crop', type=bool, default=False,
@@ -102,7 +102,6 @@ class LtolDataset(BaseDataset):
         self.A_labels_paths = sorted(make_dataset(self.dir_A_labels, opt.max_dataset_size))
         self.A_size = len(self.A_images_paths)  # get the size of dataset A
         self.B_size = len(self.B_images_paths)  # get the size of dataset B
-
         # self.transform_B = get_transformB(self.opt)
 
     def __getitem__(self, index):
