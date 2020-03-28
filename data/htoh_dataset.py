@@ -73,8 +73,8 @@ class HtohDataset(BaseDataset):
         :param is_train: -- whether training phase or test phase. You can use this flag to add training-specific or test-specific options.
         :return: the modified parser.
         """
-        parser.add_argument('--A_crop_size', type=int, default=114, help='crop to this size')  # 240
-        parser.add_argument('--B_crop_size', type=int, default=380, help='crop to this size')
+        parser.add_argument('--A_crop_size', type=int, default=84, help='crop to this size')  # 240
+        parser.add_argument('--B_crop_size', type=int, default=280, help='crop to this size')
         parser.add_argument('--inter_method_image', type=str, default='bicubic', help='the image Interpolation method')
         parser.add_argument('--inter_method_label', type=str, default='nearest', help='the label Interpolation method')
         parser.add_argument('--no_crop', type=bool, default=False,

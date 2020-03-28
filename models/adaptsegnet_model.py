@@ -69,6 +69,7 @@ class AdaptsegnetModel(BaseModel):
         else:
             self.imageB = input["img"].to(self.device)
             self.label = input["label"].to(self.device)
+            self.imageB_origin = input["img_origin"].to(self.device)
 
     def forward(self):
         if self.isTrain:
@@ -85,6 +86,8 @@ class AdaptsegnetModel(BaseModel):
 
         else:
             _, self.pre = self.netAdaptSegnet(self.imageB)
+            _, _, h, w = self.imageB_origin.size()
+            self.pre = nn.functional.interpolate(self.pre, mode="bilinear", size=(h, w), align_corners=True)
             self.prediction = self.pre.data.max(1)[1].unsqueeze(1)
 
     def backward(self):
