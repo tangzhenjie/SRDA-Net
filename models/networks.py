@@ -1144,4 +1144,202 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
         raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
 
+################################################
+# FCAN model
+################################################
+h = 280 # 记得更改 for psp_classifier(image size)
 
+# backbone
+class FCAN(nn.Module):
+    def __init__(self, block, layers):
+        self.inplanes = 64
+        super(FCAN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+                               bias=False)
+        self.bn1 = nn.BatchNorm2d(64, affine=affine_par)
+        for i in self.bn1.parameters():
+            i.requires_grad = False
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)  # change
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=1, dilation=2)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=1, dilation=4)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, 0.01)
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+        #        for i in m.parameters():
+        #            i.requires_grad = False
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilation=1):
+        downsample = None
+        if stride != 1 or self.inplanes != planes * block.expansion or dilation == 2 or dilation == 4:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * block.expansion, affine=affine_par))
+        for i in downsample._modules['1'].parameters():
+            i.requires_grad = False
+        layers = []
+        layers.append(block(self.inplanes, planes, stride, dilation=dilation, downsample=downsample))
+        self.inplanes = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes, planes, dilation=dilation))
+
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        return x
+
+# aspp discriminator
+class ASPPConv(nn.Sequential):
+    def __init__(self, in_channels, out_channels, dilation):
+        modules = [
+            nn.Conv2d(in_channels, out_channels, 3, padding=dilation, dilation=dilation, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        ]
+        super(ASPPConv, self).__init__(*modules)
+class ASPPPooling(nn.Sequential):
+    def __init__(self, in_channels, out_channels):
+        super(ASPPPooling, self).__init__(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channels, out_channels, 1, bias=True),
+            #nn.BatchNorm2d(out_channels),
+            nn.ReLU())
+
+    def forward(self, x):
+        size = x.shape[-2:]
+        x = super(ASPPPooling, self).forward(x)
+        return F.interpolate(x, size=size, mode='bilinear', align_corners=False)
+class ASPPDiscriminator(nn.Module):
+    def __init__(self, in_channels, atrous_rates):
+        super(ASPPDiscriminator, self).__init__()
+        out_channels = 128
+        modules = []
+        modules.append(nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()))
+
+        rate1, rate2, rate3 = tuple(atrous_rates)
+        modules.append(ASPPConv(in_channels, out_channels, rate1))
+        modules.append(ASPPConv(in_channels, out_channels, rate2))
+        modules.append(ASPPConv(in_channels, out_channels, rate3))
+        modules.append(ASPPPooling(in_channels, out_channels))
+
+        self.convs = nn.ModuleList(modules)
+
+        self.project = nn.Sequential(
+            nn.Conv2d(5 * out_channels, 1, 1, bias=False),
+            nn.BatchNorm2d(1)
+        )
+        self.sigmod = nn.Sigmoid()
+    def forward(self, x):
+        res = []
+        for conv in self.convs:
+            res.append(conv(x))
+        res = torch.cat(res, dim=1)
+        project = self.project(res)
+        output = self.sigmod(project)  # [0, 1]
+        return output
+
+# psp_classifier
+class PoolPyramid(nn.Sequential):
+    def __init__(self, in_channels, out_channels, kernel_size, stride):
+        modules = [
+            nn.AvgPool2d(kernel_size=kernel_size, stride=stride),
+            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU()
+        ]
+        super(PoolPyramid, self).__init__(*modules)
+class PSPClassifier(nn.Module):
+    def __init__(self, classes_num=2):
+        super(PSPClassifier, self).__init__()
+        # Build the PSP module
+        pool_k = int(h / 8)  # the base network is stride 8 by default.
+
+        # Build pooling layer results in 1x1 output.
+        self.pool1 = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(2048, 512, 1, bias=True),
+            nn.ReLU()
+        )
+        self.pool2 = PoolPyramid(2048, 512, pool_k // 2, pool_k // 2)
+        self.pool3 = PoolPyramid(2048, 512, pool_k // 3, pool_k // 3)
+        self.pool6 = PoolPyramid(2048, 512, pool_k // 6, pool_k // 6)
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(4096, 512, 3, bias=False, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU()
+        )
+        self.conv2 = nn.Conv2d(512, classes_num, 1, bias=False)
+    def forward(self, x):
+        size = x.shape[-2:]
+        pool1 = self.pool1(x)
+        pool2 = self.pool2(x)
+        pool3 = self.pool3(x)
+        pool6 = self.pool6(x)
+
+        pool1 = F.interpolate(pool1, size=size, mode='bilinear')
+        pool2 = F.interpolate(pool2, size=size, mode='bilinear')
+        pool3 = F.interpolate(pool3, size=size, mode='bilinear')
+        pool6 = F.interpolate(pool6, size=size, mode='bilinear')
+
+        res = torch.cat([pool1, pool2, pool3, pool6, x], dim=1)
+
+        conv1 = self.conv1(res)
+        output = self.conv2(conv1)
+
+        #output = nn.functional.interpolate(conv2, size=h, mode='bilinear')
+        return output
+
+def FCAN_Backbone(is_restore_from_imagenet=True, resnet_weight_path="./resnetweight/", gpu_ids=[]):
+    model = FCAN(Bottleneck, [3, 4, 23, 3])
+    if len(gpu_ids) > 0:
+        assert(torch.cuda.is_available())
+        model.to(gpu_ids[0])
+        model = torch.nn.DataParallel(model, gpu_ids)  # multi-GPUs
+    if is_restore_from_imagenet:
+        print("loading pretrained model (resnet101)")
+        state_dict = load_state_dict_from_url(model_urls['resnet101'], model_dir=resnet_weight_path)
+        new_state_dict = OrderedDict()
+        # 修改 key，没有module字段则需要不上，如果有，则需要修改为 module.features
+        for k, v in state_dict.items():
+            if 'module' not in k:
+                k = 'module.'+k
+            else:
+                k = k.replace('features.module.', 'module.features.')
+            new_state_dict[k]=v
+        model.load_state_dict(new_state_dict, strict=False) #, strict=False
+    return model
+def psp_classifier(classes_num=2, gpu_ids=[]):
+    model = PSPClassifier(classes_num)
+    if len(gpu_ids) > 0:
+        assert (torch.cuda.is_available())
+        model.to(gpu_ids[0])
+        model = torch.nn.DataParallel(model, gpu_ids)  # multi-GPUs
+    return model
+def aspp_discriminator(gpu_ids=[]):
+    model = ASPPDiscriminator(2048, [2, 3, 4])
+    if len(gpu_ids) > 0:
+        assert (torch.cuda.is_available())
+        model.to(gpu_ids[0])
+        model = torch.nn.DataParallel(model, gpu_ids)  # multi-GPUs
+    return model
