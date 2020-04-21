@@ -31,4 +31,5 @@ cd SRDA-Net
  Training Set as the source domain, and put it `./datasets` folder
  
  * Download the [Inria Aerial Image Labeling Dataset](https://project.inria.fr/aerialimagelabeling/)
+ as the target domain, and put it to `./datasets` folder.
  
