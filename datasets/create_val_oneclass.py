@@ -41,8 +41,6 @@ def change_B_label(label_dir):
     for path_item in tqdm(image_paths):
         label = m.open(label_dir + "/" + path_item).convert("L")
 
-        # Bgr to RGB
-
         # change 255 to 1
         im_point = label.point(lambda x: x // 255)
 

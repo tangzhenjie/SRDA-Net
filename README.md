@@ -33,3 +33,30 @@ cd SRDA-Net
  * Download the [Inria Aerial Image Labeling Dataset](https://project.inria.fr/aerialimagelabeling/)
  as the target domain, and put it to `./datasets` folder.
  
+ * Create the Mass-Inria dataset
+ ```
+cd datasets
+python create_train_oneclass.py
+python create_val_oneclass.py
+```
+ ## Testing
+ * Download the [checkpoint](https://pan.baidu.com/s/1NnwBMB2aqAMv5ufcmtH4XA) 提取码：dw0p
+ to `./checkpoints/mass_inria/`
+ 
+ * run
+  ```
+cd datasets
+python val.py --name mass_inria --dataroot ./datasets/mass-inria  --model srdanet_step2 --num_classes 2 --dataset_mode srdanetval --resize_size 188
+```
+## Training Examples
+* pre-training the SRDA-Net
+ ```
+cd datasets
+python train.py --name mass_inria_step1 --dataroot ./datasets/mass-inria  --model srdanet_step1 --num_classes 2 --dataset_mode srdanet --A_crop_size 114 --B_crop_size 380
+```
+* copy the weight of re-training srdanet to the `./checkpoints/mass_inria_step2/` then, run (num is the epoch num of pre-training)
+ ```
+cd datasets
+python train.py --name mass_inria_step2 --dataroot ./datasets/mass-inria  --model srdanet_step2 --num_classes 2 --dataset_mode srdanet --A_crop_size 114 --B_crop_size 380 --epoch num
+```
+

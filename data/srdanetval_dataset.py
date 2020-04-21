@@ -6,8 +6,8 @@ import torch
 import numpy as np
 import torchvision.transforms.functional as TF
 
-def transformA(image):
-    image_down = image.resize((188, 188), resample=m.BICUBIC)
+def transformA(image, opt):
+    image_down = image.resize((opt.resize_size, opt.resize_size), resample=m.BICUBIC)
 
     nomal_fun_image = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
@@ -35,6 +35,7 @@ class SrdanetvalDataset(BaseDataset):
         :param is_train: -- whether training phase or test phase. You can use this flag to add training-specific or test-specific options.
         :return: the modified parser.
         """
+        parser.add_argument('--resize_size', type=int, default=188, help='crop to this size')
         parser.add_argument('--max_dataset_size', type=int, default=float("inf"),
                             help='Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.')
         return parser
@@ -72,7 +73,7 @@ class SrdanetvalDataset(BaseDataset):
         B_label = np.array(m.open(B_path).convert('L')).astype(np.long)
         # apply image transformation
         #A = self.transformA(A_img)
-        C, A = transformA(A_img)
+        C, A = transformA(A_img, self.opt)
         B = self.transformB(B_label)
 
         return {'B_img_down': A, 'label': B, 'B_img': C}
