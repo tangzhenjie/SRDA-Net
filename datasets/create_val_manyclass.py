@@ -1,12 +1,12 @@
-# 生成mass的训练集，和inria的验证集
 import os
 from PIL import Image as m
 from tqdm import tqdm
 import random
 import cv2
 import numpy as np
+from util import util
 
-# 生成valB: 既生成高分辨率的验证集
+# the splitted pots val dataset paths
 pots_images_path_val = "./potsdam/val_origin/images"
 pots_labels_path_val = "./potsdam/val_origin/labels"
 pots_image_size_val = 500
@@ -20,7 +20,7 @@ class5 = np.array([255, 0, 0])
 
 
 
-# 生成随机切训练集
+# create the valB without overlap
 def createSets(image_dir, label_dir, image_size, output_path):
     index = 1
     image_paths = os.listdir(image_dir)
@@ -66,12 +66,9 @@ def change_B_label(label_dir):
         cv2.imwrite((label_dir + "/" + path_item), label_seg)
         #im_point.save(label_dir + "/" + path_item,'tif')
 
-
-# 生成inria验证集
 if __name__ == "__main__":
-
-    # 生成valB
-    pots_output_path_val = "./valB"
+    util.mkdirs(['./vaih_pots/valB/images', './vaih_pots/valB/labels'])
+    pots_output_path_val = "./vaih_pots/valB"
     createSets(pots_images_path_val, pots_labels_path_val, pots_image_size_val, pots_output_path_val)
-    valB_label_dir = "./valB/labels"
+    valB_label_dir = "./vaih_pots/valB/labels"
     change_B_label(valB_label_dir)

@@ -1,21 +1,22 @@
-# 生成mass的训练集，和inria的验证集
 import os
 from PIL import Image as m
 from tqdm import tqdm
 import random
 import cv2
 import numpy as np
+from util import util
 
-# 生成trainA: 既低分辨率的训练集
+# vaih dataset paths
 vai_images_path = "./vaihingen/images"
 vai_labels_path = "./vaihingen/labels"
-vai_image_size = 500  #72
+vai_image_size = 500
 
-# 生成trainB: 既生成高分辨率的验证集
+# the splitted pots training dataset paths
 pots_images_path_train = "./potsdam/train_origin/images"
 pots_labels_path_train = "./potsdam/train_origin/labels"
 pots_image_size = 1000
 
+# map(RGB -> label)
 class0 = np.array([255, 255, 255])
 class1 = np.array([0, 0, 255])
 class2 = np.array([0, 255, 255])
@@ -23,7 +24,7 @@ class3 = np.array([0, 255, 0])
 class4 = np.array([255, 255, 0])
 class5 = np.array([255, 0, 0])
 
-# 生成随机切训练集
+
 def createSetsA(image_dir, label_dir, image_size, output_path):
     index = 1
     label_paths = os.listdir(label_dir)
@@ -38,7 +39,7 @@ def createSetsA(image_dir, label_dir, image_size, output_path):
             random_height = random.randint(0, X_height - image_size - 1)
             src_roi = image[random_height: random_height + image_size, random_width: random_width + image_size, :]
             label_roi = label[random_height: random_height + image_size, random_width: random_width + image_size, :]
-            # 切割图像然后保存
+
             cv2.imwrite((output_path + "/images/image%d.tif" % index), src_roi)
             cv2.imwrite((output_path + "/labels/label%d.tif" % index), label_roi)
             index += 1
@@ -60,7 +61,7 @@ def createSetsB(image_dir, label_dir, image_size, output_path):
 
                 src_roi = image[start_colom: end_colom, start_row: end_row, :]
                 label_roi = label[start_colom: end_colom, start_row: end_row, :]
-                # 切割图像然后保存
+
                 cv2.imwrite((output_path + "/images/image%d.tif" % index), src_roi)
                 cv2.imwrite((output_path + "/labels/label%d.tif" % index), label_roi)
                 index += 1
@@ -88,18 +89,19 @@ def change_label(label_dir):
         #im_point.save(label_dir + "/" + path_item,'tif')
 
 
-# 生成inria验证集
 if __name__ == "__main__":
 
-    # 生成trainA
-    #vai_output_path = "./trainA"
-    #createSetsA(vai_images_path, vai_labels_path, vai_image_size, vai_output_path)
+    # create the paths of created datasets
+    util.mkdirs(['./vaih_pots/trainA/images', './vaih_pots/trainA/labels',
+                 './vaih_pots/trainB/images', './vaih_pots/trainB/labels'])
+    vai_output_path = "./vaih_pots/trainA"
+    createSetsA(vai_images_path, vai_labels_path, vai_image_size, vai_output_path)
 
-    # 生成tainB
-    #pots_output_path_train = "./trainB"
-    #createSetsB(pots_images_path_train, pots_labels_path_train, pots_image_size, pots_output_path_train)
+
+    pots_output_path_train = "./vaih_pots/trainB"
+    createSetsB(pots_images_path_train, pots_labels_path_train, pots_image_size, pots_output_path_train)
       
-    trainA_label_dir = "./trainA/labels"
+    trainA_label_dir = "./vaih_pots/trainA/labels"
     change_label(trainA_label_dir)
-    trainB_label_dir = "./trainB/labels"
+    trainB_label_dir = "./vaih_pots/trainB/labels"
     change_label(trainB_label_dir)
