@@ -59,4 +59,6 @@ python train.py --name mass_inria_step1 --dataroot ./datasets/mass-inria  --mode
 cd datasets
 python train.py --name mass_inria_step2 --dataroot ./datasets/mass-inria  --model srdanet_step2 --num_classes 2 --dataset_mode srdanet --A_crop_size 114 --B_crop_size 380 --epoch num
 ```
+## Acknowledgment
+This code is heavily borrowed from [CycleGAN](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix)
 
